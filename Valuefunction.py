@@ -12,19 +12,31 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.info("Input your X1, X2, and Real Result (R) values below:")
-    # Default data from your script
+    
+    # Default data with floats
     default_data = {
-        "X1": [-1, -1, -1, 0, 1, 1, 1, 0, 0],
-        "X2": [-1, 0, 1, 0, -1, 1, 0, -1, 1],
-        "R_real": [203627, 94126, 64203, 111601, 134818, 67093, 95949, 156349, 66080]
+        "X1": [-1.0, -1.0, -1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0],
+        "X2": [-1.0, 0.0, 1.0, 0.0, -1.0, 1.0, 0.0, -1.0, 1.0],
+        "R_real": [203627.0, 94126.0, 64203.0, 111601.0, 134818.0, 67093.0, 95949.0, 156349.0, 66080.0]
     }
-    df_input = st.data_editor(pd.DataFrame(default_data), num_rows="dynamic")
+    
+    # Use column_config to explicitly set columns as floats (NumberColumn)
+    df_input = st.data_editor(
+        pd.DataFrame(default_data), 
+        num_rows="dynamic",
+        column_config={
+            "X1": st.column_config.NumberColumn(format="%.4f"),
+            "X2": st.column_config.NumberColumn(format="%.4f"),
+            "R_real": st.column_config.NumberColumn(format="%.4f") # This allows any float input
+        }
+    )
 
 # --- Calculation Logic ---
 if st.button("Generate Coefficients"):
-    X1 = df_input["X1"].values
-    X2 = df_input["X2"].values
-    R_real = df_input["R_real"].values
+    # Ensure values are cast to float64 for precision
+    X1 = df_input["X1"].values.astype(float)
+    X2 = df_input["X2"].values.astype(float)
+    R_real = df_input["R_real"].values.astype(float)
     
     # Create the high-order design matrix
     X_matrix = np.column_stack([
@@ -46,7 +58,11 @@ if st.button("Generate Coefficients"):
     
     # Predictions and Accuracy Check
     R_pred = X_matrix.dot(coeffs)
-    percent_diff = np.abs((R_real - R_pred) / R_real) * 100
+    
+    # Avoid division by zero if R_real contains 0
+    with np.errstate(divide='ignore', invalid='ignore'):
+        percent_diff = np.abs((R_real - R_pred) / R_real) * 100
+        percent_diff = np.nan_to_num(percent_diff) 
 
     # --- Results Section ---
     st.divider()
